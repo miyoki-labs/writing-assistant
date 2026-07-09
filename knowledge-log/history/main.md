@@ -19,3 +19,24 @@
 - 技術：Vite / React / TypeScript（`main.tsx` / `App.tsx`）。
 
 > ※ 以降の変更はこのファイルに随時追記していく。
+
+## 2026-07-09（公開デモ用「サンプルモード」＋README）
+
+**背景**：ポートフォリオの実績のうち本ツールは**GitHubリンクのみ・READMEなし**で、リポを開いても何のツールか分からなかった（`計画\04_ポートフォリオ計画.md`）。
+
+**READMEを新設**：BYOK方式（APIキーはlocalStorageのみ・サーバー送信なし）、媒体別プロンプト（Zenn/Qiita/note/X）、4プロバイダ（Anthropic/OpenAI/DeepSeek/Gemini）、GitHub README読み込み、文体参照、トークンコスト表示。
+
+**サンプルモード**（`VITE_DEMO_MODE=1`）
+- 本ツールはBYOKなので**公開してもAPIコストは利用者持ち**。ただし**キーが無い人は何も体験できない**ため、「サンプル出力を見る」経路を追加した
+- `src/demo.ts`：`DEMO_MODE` / `SAMPLE_TOPIC` / `SAMPLE_OUTPUTS`（zenn/qiita/note/x）。**同じトピックで媒体ごとに構成・語調・長さが変わる**ことを見せるのが目的（このツールの価値そのもの）
+- `useStreamingChat` に `streamSample(media)` を追加。生成は行わず、事前出力を再生
+- `src/vite-env.d.ts` を新設（`import.meta.env` の型が無く `tsc -b` が TS2339 で落ちた）
+
+**サンプル再生が履歴を汚す問題**：生成終了時に履歴へ保存する `useEffect` が、サンプル再生の終了でも発火し、**空トピックの履歴が残っていた**。`isSampleRef` で除外。
+
+### 発見：出力欄の再描画が1回あたり約0.4秒と重い
+
+サンプルを1文字ずつ流したところ、**10秒で75字**しか進まなかった。`setOutput` のたびに出力欄がフル再描画されているのが原因で、**これは実際の生成時にも効いている**（ストリーミングのチャンクごとに同じコストを払っている）。
+暫定対応としてサンプル再生をステップ固定（20ティック）に変更。**描画の最適化は Phase 2 の課題**（出力欄のメモ化・差分描画）。
+
+**検証**：`tsc -b` 通過 → `VITE_DEMO_MODE=1 vite build` → `vite preview` で「サンプル出力を見る（zenn）」を実行し、Zenn向けfrontmatter付きの出力が流れること、履歴が空のままであることを目視確認。

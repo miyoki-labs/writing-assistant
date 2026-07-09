@@ -11,6 +11,7 @@ import { HistoryModal } from './components/HistoryModal'
 import { ImagePromptGenerator } from './components/ImagePromptGenerator'
 import { TokenUsageDisplay, TokenUsageSummary } from './components/TokenUsageDisplay'
 import { useStreamingChat } from './hooks/useStreamingChat'
+import { DEMO_MODE, SAMPLE_TOPIC } from './demo'
 import { useImagePrompts } from './hooks/useImagePrompts'
 import type { ImageTool } from './prompts/imagePrompts'
 import { MEDIA_CONFIG, type MediaType } from './prompts/mediaPrompts'
@@ -44,15 +45,22 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null)
 
-  const { output, isStreaming, error, tokenUsage, generate, reset } = useStreamingChat()
+  const { output, isStreaming, error, tokenUsage, generate, streamSample, reset } = useStreamingChat()
   const imagePrompts = useImagePrompts()
 
   // ストリーミング完了後に履歴保存
   const prevStreaming = useRef(false)
   const savedRef = useRef({ topic, media: selectedMedia, provider: selectedProvider })
   savedRef.current = { topic, media: selectedMedia, provider: selectedProvider }
+  const isSampleRef = useRef(false)
 
   useEffect(() => {
+    // サンプル出力は「生成した記事」ではないので履歴に残さない
+    if (prevStreaming.current && !isStreaming && isSampleRef.current) {
+      isSampleRef.current = false
+      prevStreaming.current = isStreaming
+      return
+    }
     if (prevStreaming.current && !isStreaming && output) {
       const { topic: t, media: m, provider: p } = savedRef.current
       const item: HistoryItem = {
@@ -215,6 +223,31 @@ export default function App() {
           >
             {isStreaming ? '生成中...' : !currentKey.trim() ? 'APIキーを入力してください' : '生成する'}
           </button>
+
+          {/* 公開デモ: キーが無くても媒体別の書き分けを体験できる経路 */}
+          {DEMO_MODE && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <p className="text-xs text-amber-800 leading-relaxed">
+                APIキーをお持ちでない場合は、<strong className="font-semibold">サンプル出力</strong>をご覧いただけます。
+                生成は行わず、あらかじめ用意した出力を再生します（同じトピックでも媒体ごとに構成・語調・長さが変わります）。
+              </p>
+              <button
+                onClick={() => {
+                  isSampleRef.current = true
+                  streamSample(selectedMedia)
+                }}
+                disabled={isStreaming}
+                className="w-full py-2.5 rounded-lg bg-white border border-amber-300 text-amber-800 font-semibold text-sm
+                  hover:bg-amber-100 active:scale-95 transition-all duration-150
+                  disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 min-h-[44px]"
+              >
+                {isStreaming ? '再生中...' : `サンプル出力を見る（${selectedMedia}）`}
+              </button>
+              <p className="text-[11px] text-amber-700/80 leading-relaxed">
+                トピック: {SAMPLE_TOPIC}
+              </p>
+            </div>
+          )}
 
           {/* 出力エリア */}
           <div className="space-y-2">
