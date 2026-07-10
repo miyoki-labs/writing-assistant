@@ -73,13 +73,12 @@ export function useStreamingChat(): UseStreamingChatReturn {
     setIsStreaming(true)
 
     const text = SAMPLE_OUTPUTS[media]
-    // 出力欄の再描画が1回あたり約0.4秒と重いため、1文字ずつだと極端に遅くなる。
-    // （この重さは実際の生成時にも効いている。描画の最適化は別途）
-    // ステップ数を固定し、文字数によらず十数秒で流し切る。
-    const TICKS = 20
-    const step = Math.max(1, Math.ceil(text.length / TICKS))
-    for (let i = step; i < text.length; i += step) {
-      await new Promise((r) => setTimeout(r, 40))
+    // 実際の生成と同じ体感になるよう、数文字ずつ流す。
+    // ※ブラウザ自動化で「遅い」と見えたら、それはタブが hidden で setTimeout が
+    //   1秒に1回へクランプされているだけ（描画は速い。long task も出ない）。
+    const STEP = 2
+    for (let i = STEP; i < text.length; i += STEP) {
+      await new Promise((r) => setTimeout(r, 12))
       setOutput(text.slice(0, i))
     }
     setOutput(text)
